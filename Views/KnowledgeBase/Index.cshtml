@@ -1,0 +1,311 @@
+@{
+    IEnumerable<MarkDownFile> MarkdownFiles = ViewBag.MarkdownFiles;
+    string document = ViewBag.Document;
+    Folder rootFolder = ViewBag.RootFolder;
+}
+
+<div class="row">
+    <div class="col-md-2" style="padding: 0">        
+        <div class="sidebar">
+            <div class="input-group" style="width: 95%; margin: 5px;">
+                <input 
+                    v-model="searchPattern"
+                    v-on:keyup.enter="SearchMarkdown('@document')"
+                    placeholder="Search"
+                    class="form-control" type="search" placeholder="Search" aria-label="Search">
+                <span class="input-group-btn">
+                    <button class="btn btn-default" type="button" v-on:click="ClearSearch"><i class="fas fa-times"></i></button>
+                </span>
+            </div>
+
+            <li v-for="result in searchResults">
+                <a v-on:click="fetchMarkdown(result.normalizedPath, '@document')" class="">{{ result.name }}</a>
+            </li>
+
+            <h2 style="text-align: center" id="document">@document</h2>
+            <div class="root-folder">
+                <tree-item 
+                    :item="rootFolder" 
+                    v-on:fetch-markdown="fetchMarkdown">
+                </tree-item>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-9" style="padding-top: 10px;">
+        <textarea id="MDTextArea" class="hidden"></textarea>
+        <div id="markdown-content"></div>   
+    </div>
+    <div class="col-md-1" style="padding-top: 10px;">
+        <button class="btn" v-on:click="StartEdit" v-show="!editing"><i class ="fas fa-edit"></i></button>
+        <button class="btn" v-on:click="HtmlToPdf" v-show="!editing"><i class ="fas fa-print"></i></button>
+        <div class="btn-group" role="group" aria-label="Basic example">
+            <button class="btn btn-primary" v-on:click="SaveEdit" v-show="editing"><i class ="fas fa-save"></i></button>
+            <button class="btn btn-danger" v-on:click="CancelEdit" v-show="editing"><i class ="fas fa-times"></i></button>
+        </div>
+    </div>
+    
+</div>
+
+@section Scripts {
+    <!-- item template -->
+    <script type="text/x-template" id="item-template">
+        <div class="md-folder">
+                <!-- :class="{'bold': isFolder}" -->
+            <a  v-on:click="toggle">
+                <!-- <span v-if="isFolder">[{{ isOpen ? '-' : '+' }}]</span> -->
+                <i class="fas fa-folder"> </i>
+                {{ item.Name }}                    
+            </a>
+            <div class="sub-folders" 
+                v-show="isOpen" v-if="isFolder">
+                <tree-item
+                    v-for="(child, index) in item.Subfolders"
+                    :key="index"
+                    :item="child">
+                </tree-item>
+            </div>
+            <div class="md-file" 
+                v-show="isOpen"
+                v-for="(file, index) in item.Files"
+                v-on:click="fetchMarkdown(file.NormalizedPath)">
+                
+                <a> <i class="fas fa-file"> </i> {{file.Name}}</a>
+            </div>
+        </div>
+    </script>
+
+    <style>
+        .root-folder{
+            margin-left: -1em;
+        }
+        .root-folder .sub-folders{
+            margin-bottom: 10px;
+        }
+        .md-folder{
+            margin-left: 1em;
+        }
+        .md-folder > a{
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+        .md-folder > .md-file{
+            margin-left: 1.2em;            
+        }
+    </style>
+
+    <script>
+    $( document ).ready(function() {
+
+        function escapeRegExp(str) {
+            return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+        }
+
+        function replaceAll(str, find, replace) {
+            return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
+        }
+
+        function santizeMarkdown(str)
+        {
+            let sanitizedString = str.replace(new RegExp(escapeRegExp('&gt;'), 'g'), '>');            
+            sanitizedString = sanitizedString.replace(new RegExp(escapeRegExp('&lt;'), 'g'), '<');
+            return sanitizedString;
+        }
+
+        showdown.extension('bootstrap-tables', function () {
+            return [{
+                type: "output",
+                filter: function (html, converter, options) {
+                // parse the html string
+                var liveHtml = $('<div></div>').html(html);
+                $('table', liveHtml).each(function(){ 
+                    var table = $(this);
+                    // table bootstrap classes
+                    table.addClass('table table-striped table-bordered')
+                    // make table responsive
+                    //.wrap('<div class="class table-responsive"></div>');
+                });
+                return liveHtml.html();
+                }
+            }];
+        });
+
+        // EVENT HUB
+        window.eventHub = new Vue({
+            methods:{
+               fetchMarkdown(path){  
+                    this.$emit('fetch-markdown', path);
+                } 
+            }
+        });
+
+        // define the tree-item component
+        Vue.component('tree-item', {
+            template: '#item-template',
+            props: {
+                item: Object,
+            },
+            data: function () {
+                return {
+                    isOpen: false,
+                    editing: false,
+                    filePath: "",
+                    doc: "",
+                }
+            },
+            computed: {
+                isFolder: function () {
+                    return this.item.Files &&
+                        this.item.Files.length
+                }
+            },
+            methods: {
+                toggle: function () {
+                    if (this.isFolder) {
+                        this.isOpen = !this.isOpen
+                    }
+                },
+                fetchMarkdown(path){  
+                    window.eventHub.fetchMarkdown(path);
+                },
+            }
+        });
+
+        var app = new Vue({
+            el: '#app',
+            data: {
+                searchPattern: '',
+                searchResults: [ ],
+                simplemde: null,
+                editing: false,
+                filePath: "",
+                document: "",
+                rootFolder: @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(@rootFolder, Newtonsoft.Json.Formatting.Indented))
+            },
+            methods:{
+                OpenSubfolder(folder){
+                    console.log(folder);
+                },
+                addItem: function () {
+                    console.log("AddItem");
+                },
+                fetchMarkdown(path){ 
+                    var self = this;  
+                    if(self.editing == true)
+                        return;
+
+                    self.filePath = path;   
+                    self.document = document.getElementById("document").innerHTML;             
+                    axios({
+                        method: 'post',
+                        url: '/KnowledgeBase/FetchMarkdown',
+                        data: {
+                            file: self.filePath,
+                            document: self.document
+                        }
+                    })
+                    .then(function (response) {
+                        var converter = new showdown.Converter({ extensions: ['bootstrap-tables'] });
+                        converter.setOption('tables', 'true');                        
+                        converter.setOption('parseImgDimensions', 'true');
+                        let htmlText = converter.makeHtml(response.data);
+                        document.getElementById('MDTextArea').innerHTML = response.data;
+                        document.getElementById('markdown-content').innerHTML = htmlText;
+                    })
+                    .catch(function (error) {
+                        console.log(error);
+                    });
+                },
+                SearchMarkdown(doc){
+                    var self = this;
+                    axios({
+                        method: 'post',
+                        url: '/KnowledgeBase/SearchMarkdown',
+                        data: {
+                            searchPattern: this.searchPattern,
+                            document: doc
+                        }
+                    })
+                    .then(response => {
+                        self.searchResults = [];
+                        if(Array.isArray(response.data))
+                        {
+                            response.data.forEach(function (item, index) {
+                                self.searchResults.push(item);
+                            });
+                        }
+                        console.log(self.searchResults);
+                    })
+                    .catch(function (error) {
+                        console.log(error);
+                    });
+                },
+                ClearSearch(){
+                    this.searchResults = [];
+                    this.searchPattern = "";
+                },
+                StartEdit(){
+                    this.editing = true;
+                    if(this.simplemde == null)
+                    {
+                        this.simplemde = new SimpleMDE({ element: document.getElementById("MDTextArea") });
+                        let sanitizedString = santizeMarkdown(document.getElementById('MDTextArea').innerHTML);
+                        this.simplemde.value(sanitizedString);
+                    }                    
+                },                
+                SaveEdit(){
+                    this.editing = false;
+                    if(this.simplemde != null)
+                    {
+                        var converter = new showdown.Converter();
+                        converter.setOption('tables', 'true');
+                        converter.setOption('parseImgDimensions', 'true');
+                        let htmlText = converter.makeHtml(this.simplemde.value());                        
+                        document.getElementById('MDTextArea').innerHTML = this.simplemde.value();
+                        document.getElementById('markdown-content').innerHTML = htmlText;
+
+                        axios({
+                            method: 'post',
+                            url: '/KnowledgeBase/SaveMarkdown',
+                            data: {
+                                file: this.filePath,
+                                document: this.document,
+                                markdown: this.simplemde.value(),
+                            }
+                        })
+
+                        this.simplemde.toTextArea();
+                        this.simplemde = null;                        
+                    } 
+
+                    
+                },
+                CancelEdit(){
+                    this.editing = false;
+                    if(this.simplemde != null)
+                    {
+                        this.simplemde.toTextArea();
+                        this.simplemde = null; 
+                    }
+                },
+                HtmlToPdf(){
+                     //let htmlString = document.getElementById('markdown-content').innerHTML;
+                     let htmlString = document.documentElement.innerHTML
+                     axios({
+                            method: 'post',
+                            url: '/KnowledgeBase/CreatePdf',
+                            data: {
+                                html: htmlString,
+                            }
+                        })
+                }
+            },
+            created(){
+                window.eventHub.$on("fetch-markdown", (path) => {
+                    this.fetchMarkdown(path);
+                })
+            }
+        })
+        
+    });
+    </script>
+}

@@ -1,0 +1,102 @@
+﻿@{
+    IEnumerable<string> Directories = ViewBag.Directories;
+    IEnumerable<MarkDownFile> MarkdownFiles = ViewBag.MarkdownFiles;
+    IEnumerable<string> KnowledgeBases = ViewBag.KnowledgeBases;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />  
+    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="~/css/fontawesome/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">   
+
+    <style>
+         /* The side navigation menu */
+        .sidebar {
+            margin: 0;
+            padding: 0;
+            background-color: #f1f1f1;
+            height: 100%;
+            overflow: auto;
+        }
+
+        /* Sidebar links */
+            .sidebar a {
+            display: block;
+            color: black;
+            padding: 10px;
+            text-decoration: none;
+            font-size: 1em
+        }
+
+        /* Active/current link */
+            .sidebar a.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        /* Links on mouse-over */
+            .sidebar a:hover:not(.active) {
+            background-color: #555;
+            color: white;
+        }
+
+        /* Page content. The value of the margin-left property should match the value of the sidebar's width property */
+        div.content {
+            margin-left: 200px;
+            padding: 1px 16px;
+            height: 1000px;
+        }
+
+
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-inverse navbar-fixed-top">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="navbar-header col-md-2">
+                    <div>                        
+                        <a asp-area="" asp-controller="Home" asp-action="Index" class="navbar-brand">MD Knowledge Base</a>
+                    </div>
+                </div>
+                <div class="navbar-collapse collapse">
+                    <ul class="nav navbar-nav">
+                        @foreach (var knowledgeBase in KnowledgeBases)
+                        {
+                            <li><a asp-area="" asp-controller="KnowledgeBase" asp-action="Index" asp-route-document="@knowledgeBase">@knowledgeBase</a></li>
+                        }
+                    </ul>                
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <partial name="_CookieConsentPartial" />
+
+    <div class="container-fluid body-content" id="app">
+        @RenderBody()        
+        <hr />
+        <footer>
+            <p>&copy; 2019 - RBT Knowledge Base</p>
+        </footer>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.js"></script>
+    <script src="~/js/site.js"></script>
+    <script src="~/js/vue.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.min.js"></script>     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/remarkable/1.7.1/remarkable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/1.9.0/showdown.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
+
+    @RenderSection("Scripts", required: false)
+</body>
+</html>
